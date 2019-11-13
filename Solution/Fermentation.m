@@ -2,19 +2,20 @@ function Fermentation
 clc
 close all
 
-param=fedBatch(40,5000,8e-6,37)
+param=fedBatch(38,3000,8e-6,37)
 
 function Param=fedBatch(S,Vr,Vf_Vr,T)
-% 0.9782	C6H12O6	+	0.6086	C5H10O5	+	0.1250	NH4NO3	-->	1 CH1.6O0.43N0.25	+	1.2450	C4H8O2	+	0.0287	C2H4O2	+	2.7902	H2	+	2.8732	CO2	+	0.5617	H2O
+% 1.1412 C6H12O6	+	0.70964	C5H10O5	+	0.125	NH4NO3	-->	1	CH1.6O0.43N0.25	+	1.5942	C4H8O2	+	0.0368	C2H4O2	+	2.2443	H2	+	2.9455	CO2	+	1.1880	H2O
 
-stech=[-0.9872 -0.6086 -0.1250 1 1.2450 0.0287 2.7902 2.8732 0.5617];
+
+stech=[-1.1412 -0.7096 -0.1250 1 1.5942 0.0368 2.2443 2.9455 1.1880];
 MW=[180.156 150.13 80.043 26.0652 88.11 60.052 2.002 44.01 18.02]; % 8% popol
 de=0.701612e-3;
 ws=[0.6587 0.3413];
 N=20;
 kin=[0.48/3600 1.62 372 48.3 5.18];
 Ep=0.703;
-cLK=50;
+cLK=75;
 VLK=0.1*Vr;
 V0=VLK;
 Vf=Vf_Vr*Vr;
@@ -42,7 +43,7 @@ Qi=0;
 De=[1e-11 1e-11 1e-11 0 1e-11 1e-11 1e-11 1e-5 1e-5 0];
 Feed=[S*ws(1) S*ws(2) cNS 0 0 0 0 0 0 0];
 IC=[cAi cBi cCi cDi cEi cFi cGi cHi cIi Vri Qi];
-tspan=[0 100*3600];
+tspan=[0 50*3600];
 
 [t,c]=ode15s(@kinetModel,tspan,IC,[],Vf,De,VLK,cLK,de,N,stech,MW,kin,Feed,IC,Ep,Vr);
 cA=c(:,1:N);
@@ -256,6 +257,7 @@ spc=(Hr-nv*do)/nv;
 
 param.di=di*100/2.54;
 param.do=do*100/2.54;
+param.BWG=BWG;
 param.L=round(L,0);
 param.nv=ceil(nv);
 param.spc=spc;
