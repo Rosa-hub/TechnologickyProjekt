@@ -2,7 +2,7 @@ function Fermentation
 clc
 close all
 
-param=fedBatch(45,5000,5e-6,37)
+param=fedBatch(40,5000,8e-6,37)
 
 function Param=fedBatch(S,Vr,Vf_Vr,T)
 % 0.9782	C6H12O6	+	0.6086	C5H10O5	+	0.1250	NH4NO3	-->	1 CH1.6O0.43N0.25	+	1.2450	C4H8O2	+	0.0287	C2H4O2	+	2.7902	H2	+	2.8732	CO2	+	0.5617	H2O
@@ -16,9 +16,10 @@ kin=[0.48/3600 1.62 372 48.3 5.18];
 Ep=0.703;
 cLK=50;
 VLK=0.1*Vr;
-V0=0.5*VLK;
-Vf=Vf_Vr*(Vr-VLK-V0);
+V0=VLK;
+Vf=Vf_Vr*Vr;
 cNS=S*ws(1)/MW(1)/stech(1)*stech(3)*MW(3)*1.2;
+densFB=1000;
 
 
 cAi=zeros(1,N);
@@ -34,16 +35,16 @@ cFi=zeros(1,N);
 cGi=zeros(1,N);
 cHi=zeros(1,N);
 cIi=zeros(1,N);
-Vri=VLK+V0;
+Vri=V0;
 Qi=0;
 
 
-De=[1e-10 1e-10 1e-10 0 1e-10 1e-10 1e-10 1e-5 1e-5 0];
+De=[1e-11 1e-11 1e-11 0 1e-11 1e-11 1e-11 1e-5 1e-5 0];
 Feed=[S*ws(1) S*ws(2) cNS 0 0 0 0 0 0 0];
 IC=[cAi cBi cCi cDi cEi cFi cGi cHi cIi Vri Qi];
-tspan=[0 (Vr-VLK-V0)/Vf];%
+tspan=[0 100*3600];
 
-[t,c]=ode15s(@kinetModel,tspan,IC,[],Vf,De,VLK,cLK,de,N,stech,MW,kin,Feed,IC,Ep);
+[t,c]=ode15s(@kinetModel,tspan,IC,[],Vf,De,VLK,cLK,de,N,stech,MW,kin,Feed,IC,Ep,Vr);
 cA=c(:,1:N);
 cB=c(:,N+1:2*N);
 cC=c(:,2*N+1:3*N);
@@ -54,8 +55,29 @@ cG=c(:,6*N+1:7*N);
 cH=c(:,7*N+1:8*N);
 cI=c(:,8*N+1:9*N);
 Vr=c(:,9*N+1);
-Q=c(:,end);
+Qm=c(:,end);
 
+%Aggitation
+dm=0.35;
+Np=3;
+n=3;
+N=250/60;
+Qp=Np*N^3*n*dm^5*densFB/1000;
+
+Q=Qm+Qp;
+I(1)=0;
+
+for i=2:length(Q)
+    I(i)=(Q(i-1)+Q(i))/2*(t(i)-t(i-1));
+end
+
+Qs=sum(I)/t(end);
+
+VR=(Vr(end)+VLK)/0.8;
+disp(VR)
+
+Coilpar=coolingCoil(Qs,T,dm,N,densFB,Vr(end)+VLK);
+disp(Coilpar)
 
 figure(1)
 plot(t/3600,cA(:,end),t/3600,cB(:,end),t/3600,cC(:,end),t/3600,cE(:,end),t/3600,cF(:,end),'LineWidth',2)
@@ -74,7 +96,7 @@ grid on
 Param=cE(end,end);
 
 
-function dxdt=kinetModel(t,x,Vf,De,VLK,cLK,de,N,stech,MW,kin,Feed,IC,Ep)
+function dxdt=kinetModel(t,x,Vf,De,VLK,cLK,de,N,stech,MW,kin,Feed,IC,Ep,Vrf)
 cA=x(1:N);
 cB=x(N+1:2*N);
 cC=x(2*N+1:3*N);
@@ -86,6 +108,11 @@ cH=x(7*N+1:8*N);
 cI=x(8*N+1:9*N);
 Vr=x(9*N+1);
 Q=x(end);
+
+
+if Vr>=Vrf
+    Vf=0;
+end
 
 D=Vf/Vr;
 
@@ -182,6 +209,60 @@ for i=2:N
 end
 ksis=3/R^3*sum(I);
 
-dQ=ksis*abs(dH);
+dQ=ksis*abs(dH)/alfa;
 
 dxdt=[dAdt dBdt dCdt dDdt dEdt dFdt dGdt dHdt dIdt dVr dQ]';
+
+function param = coolingCoil(Q,T,dm,N,dens,Vr)
+
+tci=15;
+tco=T-5;
+dtc=tco-tci;
+mc=Q/4.2/dtc;
+wopt=1.8;
+Vc=mc/997;
+di=sqrt(4*Vc/pi/wopt)*100/2.54;
+BWG=0.259;
+do=di+BWG*2;
+if mod(do,0.25)<0.25/2
+    do_adj=-mod(do,0.25);
+    
+else
+    do_adj=0.25-mod(do,0.25);
+end
+do=(do+do_adj)*2.54/100;
+di=do-2*BWG*2.54/100;
+wc=4*Vc/pi/di^2;
+Dr=3*dm;
+lam_coil=100;
+
+Rec=wc*di*dens/1e-3;
+Prc=6.21;
+Nuc=0.023*Rec^0.8*Prc^0.4;
+hc=Nuc*0.608/di;
+
+Reh=N*dm^2*1000/10e-3;
+Prh=4180*10e-3/0.6;
+Nuh=0.187*Reh^0.688*Prh^0.37*(0.69/0.8)^0.11*(Dr/dm)^0.382;
+hh=Nuh*0.6/Dr;
+LMTD=((T-tci)-(T-tco))/log((T-tci)/(T-tco));
+Ul=pi/(1/hc/di+1/2/lam_coil*log(do/di)+1/hh/do);
+
+L=Q*1000/Ul/LMTD;
+nv=L/pi/Dr;
+
+Hr=4*Vr/1000/pi/Dr^2;
+spc=(Hr-nv*do)/nv;
+
+param.di=di*100/2.54;
+param.do=do*100/2.54;
+param.L=round(L,0);
+param.nv=ceil(nv);
+param.spc=spc;
+param.Hr=round(Hr,1);
+param.Dr=Dr;
+param.U=round(Ul/pi/do,0);
+
+
+
+
