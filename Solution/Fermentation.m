@@ -271,6 +271,7 @@ spc=(Hr-nv*do)/nv;
 
 param.di=di*100/2.54;
 param.do=do*100/2.54;
+param.w=wc;
 param.BWG=BWG;
 param.L=round(L,0);
 param.nv=ceil(nv);
