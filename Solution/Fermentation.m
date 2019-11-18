@@ -2,7 +2,7 @@ function Fermentation
 clc
 close all
 
-param=fedBatch(38,3000,8e-6,37)
+param=fedBatch(35,3000,8e-6,37)
 
 function Param=fedBatch(S,Vr,Vf_Vr,T)
 % 1.1412 C6H12O6	+	0.70964	C5H10O5	+	0.125	NH4NO3	-->	1	CH1.6O0.43N0.25	+	1.5942	C4H8O2	+	0.0368	C2H4O2	+	2.2443	H2	+	2.9455	CO2	+	1.1880	H2O
@@ -37,15 +37,14 @@ cGi=zeros(1,N);
 cHi=zeros(1,N);
 cIi=zeros(1,N);
 Vri=V0;
+cIi(N)=0;
 Qi=0;
 
-
-De=[1e-11 1e-11 1e-11 0 1e-11 1e-11 1e-11 1e-5 1e-5 0];
 Feed=[S*ws(1) S*ws(2) cNS 0 0 0 0 0 0 0];
 IC=[cAi cBi cCi cDi cEi cFi cGi cHi cIi Vri Qi];
 tspan=[0 50*3600];
 
-[t,c]=ode15s(@kinetModel,tspan,IC,[],Vf,De,VLK,cLK,de,N,stech,MW,kin,Feed,IC,Ep,Vr);
+[t,c]=ode15s(@kinetModel,tspan,IC,[],Vf,VLK,cLK,de,N,stech,MW,kin,Feed,IC,Ep,Vr,T);
 cA=c(:,1:N);
 cB=c(:,N+1:2*N);
 cC=c(:,2*N+1:3*N);
@@ -97,7 +96,7 @@ grid on
 Param=cE(end,end);
 
 
-function dxdt=kinetModel(t,x,Vf,De,VLK,cLK,de,N,stech,MW,kin,Feed,IC,Ep,Vrf)
+function dxdt=kinetModel(t,x,Vf,VLK,cLK,de,N,stech,MW,kin,Feed,IC,Ep,Vrf,T)
 cA=x(1:N);
 cB=x(N+1:2*N);
 cC=x(2*N+1:3*N);
@@ -148,6 +147,21 @@ R=de/2;
 dr=R/(N-1);
 Y=stech.*MW/MW(4);
 rp=linspace(0,R,N);
+
+C=[cA(N) cB(N) cC(N) cD(N) cE(N) cF(N) cG(N) cH(N)];
+
+
+DeA=DiffusionCoef(T,1,C,1);
+DeB=DiffusionCoef(T,1,C,2);
+DeC=DiffusionCoef(T,1,C,3);
+DeD=0;
+DeE=DiffusionCoef(T,1,C,5);
+DeF=DiffusionCoef(T,1,C,6);
+DeG=DiffusionCoef(T,1,C,7);
+DeH=DiffusionCoef(T,1,C,8);
+DeI=0;
+
+De=[DeA DeB DeC DeD DeE DeF DeG DeH DeI];
 
 for j=1:N
     
