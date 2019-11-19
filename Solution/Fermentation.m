@@ -4,27 +4,51 @@ close all
 
 Prod=200;
 VrN=1.5080e+04;
+BAF=3.1163;
 tMF=1;
-
-% Vr=fzero(@production,VrN,[],Prod,tMF)
-
-
-
-
-% function f=production(VrN,Prod,tMF)
-paramF=fedBatch(36,VrN,8e-6,37);
-paramMF=MF(paramF.Vf,paramF.BA,paramF.S,tMF);
+S=35;
+BA=fsolve(@BA_FEED,BAF,[],Prod,tMF,VrN,S)
 
 Yrec=0.95;
 Yext=0.99;
+paramF=fedBatch(S,VrN,6.5e-6,37,BA,0)
+paramMF=MF(paramF.Vf,paramF.BA,paramF.S,tMF)
+n_acid=upravapH(paramMF.Vper,paramMF.cBA_perm,6,4.5)
+n_base=upravapH(paramMF.Vper,paramMF.cBA_perm*(1-Yext),4.5,6)
 
 tR=paramF.tR;
 t_tot=tR/3600+0.5+tMF;
 prodc=paramMF.cBA_perm*paramMF.Vper*Yext*Yrec/1000/t_tot*24
-f=(Prod-prodc)/1000
+
+V_FMR=paramF.S*paramF.Vf/S/1000
+V_H=paramF.Vf/1000-V_FMR
 
 
 
+
+function f=BA_FEED(BAF,Prod,tMF,VrN,S)
+Yrec=0.95;
+Yext=0.99;
+paramF=fedBatch(S,VrN,6.5e-6,37,BAF,1)
+paramMF=MF(paramF.Vf,paramF.BA,paramF.S,tMF)
+n_acid=upravapH(paramMF.Vper,paramMF.cBA_perm,6,4.5)
+n_base=upravapH(paramMF.Vper,paramMF.cBA_perm*(1-Yext),4.5,6)
+
+
+
+tR=paramF.tR;
+t_tot=tR/3600+0.5+tMF;
+prodc=paramMF.cBA_perm*paramMF.Vper*Yext*Yrec/1000/t_tot*24
+
+c_BAFMR=(paramMF.cBA_ret*paramMF.Vret+paramMF.Vper*paramMF.cBA_perm*(1-Yext))/paramF.Vf;
+c_BA_reg=S/paramF.S*c_BAFMR;
+V_FMR=paramF.S*paramF.Vf/S/1000;
+V_H=paramF.Vf/1000-V_FMR;
+
+
+cBA_Feed=V_FMR*c_BA_reg/(V_FMR+V_H);
+
+f=BAF-cBA_Feed;
 
 function Param=MF(V,cBA,cS,t)
 BAr=0.175/2;
@@ -57,7 +81,7 @@ Param.A=A;
 
 
 
-function Param=fedBatch(S,Vr,Vf_Vr,T)
+function Param=fedBatch(S,Vr,Vf_Vr,T,BAF,sm)
 % 1.1412 C6H12O6	+	0.70964	C5H10O5	+	0.125	NH4NO3	-->	1	CH1.6O0.43N0.25	+	1.5942	C4H8O2	+	0.0368	C2H4O2	+	2.2443	H2	+	2.9455	CO2	+	1.1880	H2O
 
 
@@ -71,7 +95,6 @@ Ep=0.703;
 cLK=75;
 VLK=0.1*Vr;
 V0=VLK;
-Vf=Vf_Vr*Vr;
 cNS=S*ws(1)/MW(1)/stech(1)*stech(3)*MW(3)*1.2;
 densFB=1000;
 
@@ -85,6 +108,7 @@ cCi(N)=cNS;
 cDi=ones(1,N)*cLK*VLK/(VLK+V0);
 cDi(N)=0;
 cEi=zeros(1,N);
+cEi(N)=BAF;
 cFi=zeros(1,N);
 cGi=zeros(1,N);
 cHi=zeros(1,N);
@@ -93,9 +117,11 @@ Vri=V0;
 cIi(N)=0;
 Qi=0;
 
-Feed=[S*ws(1) S*ws(2) cNS 0 0 0 0 0 0 0];
+Vf=Vf_Vr*(Vr-Vri);
+
+Feed=[S*ws(1) S*ws(2) cNS 0 BAF 0 0 0 0 0];
 IC=[cAi cBi cCi cDi cEi cFi cGi cHi cIi Vri Qi];
-tspan=[0 45*3600];
+tspan=[0 (Vr-Vri)/Vf];
 
 [t,c]=ode15s(@kinetModel,tspan,IC,[],Vf,VLK,cLK,de,N,stech,MW,kin,Feed,IC,Ep,Vr,T);
 cA=c(:,1:N);
@@ -127,11 +153,9 @@ end
 Qs=sum(I)/t(end);
 
 VR=(Vr(end)+VLK)/0.8;
-disp(VR);
 
 Coilpar=coolingCoil(Qs,T,dm,N,densFB,Vr(end)+VLK);
-disp(Coilpar)
-
+if sm==0
 figure(1)
 plot(t/3600,cA(:,end),t/3600,cB(:,end),t/3600,cC(:,end),t/3600,cE(:,end),t/3600,cF(:,end),'LineWidth',2)
 legend('Gluc','Xyl','NH4NO3','BA','AA')
@@ -146,11 +170,15 @@ title 'Generovanie tepla'
 xlabel 't [h]'
 ylabel 'Teplo [kW]'
 grid on
+else 
+end
 Param.BA=cE(end,end);
 Param.S=cA(end,end)+cB(end,end);
 Param.VR=VR/1000;
 Param.Vf=VR*0.8-VLK;
 Param.tR=t(end);
+Param.VT=Coilpar;
+Param.Vfeed=Vf;
 
 
 function dxdt=kinetModel(t,x,Vf,VLK,cLK,de,N,stech,MW,kin,Feed,IC,Ep,Vrf,T)
