@@ -2,7 +2,60 @@ function Fermentation
 clc
 close all
 
-param=fedBatch(35,3000,8e-6,37)
+Prod=200;
+VrN=1.5080e+04;
+tMF=1;
+
+% Vr=fzero(@production,VrN,[],Prod,tMF)
+
+
+
+
+% function f=production(VrN,Prod,tMF)
+paramF=fedBatch(36,VrN,8e-6,37);
+paramMF=MF(paramF.Vf,paramF.BA,paramF.S,tMF);
+
+Yrec=0.95;
+Yext=0.99;
+
+tR=paramF.tR;
+t_tot=tR/3600+0.5+tMF;
+prodc=paramMF.cBA_perm*paramMF.Vper*Yext*Yrec/1000/t_tot*24
+f=(Prod-prodc)/1000
+
+
+
+
+function Param=MF(V,cBA,cS,t)
+BAr=0.175/2;
+Sr=0.154/2;
+J=(166.4+143.7)/2;
+
+vr=0.108;
+
+mBA=V*cBA;
+mS=V*cS;
+mBA_perm=mBA*(1-BAr);
+mS_perm=mS*(1-Sr);
+
+Vper=V*(1-vr);
+A=Vper/J/t;
+
+cBA_Perm=mBA_perm/Vper;
+cS_Perm=mS_perm/Vper;
+
+cBA_ret=mBA*BAr/V/vr;
+cS_ret=mS*Sr/V/vr;
+
+Param.cBA_perm=cBA_Perm;
+Param.cS_perm=cS_Perm;
+Param.cBA_ret=cBA_ret;
+Param.cS_ret=cS_ret;
+Param.Vper=Vper;
+Param.Vret=V*vr;
+Param.A=A;
+
+
 
 function Param=fedBatch(S,Vr,Vf_Vr,T)
 % 1.1412 C6H12O6	+	0.70964	C5H10O5	+	0.125	NH4NO3	-->	1	CH1.6O0.43N0.25	+	1.5942	C4H8O2	+	0.0368	C2H4O2	+	2.2443	H2	+	2.9455	CO2	+	1.1880	H2O
@@ -42,7 +95,7 @@ Qi=0;
 
 Feed=[S*ws(1) S*ws(2) cNS 0 0 0 0 0 0 0];
 IC=[cAi cBi cCi cDi cEi cFi cGi cHi cIi Vri Qi];
-tspan=[0 50*3600];
+tspan=[0 45*3600];
 
 [t,c]=ode15s(@kinetModel,tspan,IC,[],Vf,VLK,cLK,de,N,stech,MW,kin,Feed,IC,Ep,Vr,T);
 cA=c(:,1:N);
@@ -74,7 +127,7 @@ end
 Qs=sum(I)/t(end);
 
 VR=(Vr(end)+VLK)/0.8;
-disp(VR)
+disp(VR);
 
 Coilpar=coolingCoil(Qs,T,dm,N,densFB,Vr(end)+VLK);
 disp(Coilpar)
@@ -93,7 +146,11 @@ title 'Generovanie tepla'
 xlabel 't [h]'
 ylabel 'Teplo [kW]'
 grid on
-Param=cE(end,end);
+Param.BA=cE(end,end);
+Param.S=cA(end,end)+cB(end,end);
+Param.VR=VR/1000;
+Param.Vf=VR*0.8-VLK;
+Param.tR=t(end);
 
 
 function dxdt=kinetModel(t,x,Vf,VLK,cLK,de,N,stech,MW,kin,Feed,IC,Ep,Vrf,T)
@@ -224,7 +281,7 @@ for i=2:N
 end
 ksis=3/R^3*sum(I);
 
-dQ=ksis*abs(dH)/alfa;
+dQ=ksis*abs(dH);
 
 dxdt=[dAdt dBdt dCdt dDdt dEdt dFdt dGdt dHdt dIdt dVr dQ]';
 
