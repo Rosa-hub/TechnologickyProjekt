@@ -1,74 +1,37 @@
-function output = Fermentation(m_ext,Yext,mext_out)
+function Fermentation_OPTS
 clc
 close all
-VrN=3e+03;
-BAF=0;
-top=1;
-tdisp=0.5;
-ybleed=0.1;
-S=45;
-Vr_Vf=4.5e-5;
-tol=1;
 
-while tol>1e-2
-    
-paramF=fedBatch(S,VrN,Vr_Vf,37,BAF,1);
-paramMF=MF(m_ext/paramF.BA);
-ro_acid=1/(0.9/1830+0.1/997);
-ro_base=880;
-n_acid=upravapH(paramMF.Vper,paramF.BA,6,4.5);
-n_base=upravapH(mext_out*(1-ybleed),paramF.BA*(1-Yext),4.5,6);
-c_acid=0.9*ro_acid/98.08*1000;
-c_base=0.28*ro_base/17.031*1000;
 
-V_acid=n_acid/c_acid;
-V_base=n_base/c_base;
+VF_VR=linspace(5e-5,5e-4,20);
+S=linspace(30,70,20);
 
-tR=paramF.tR;
+for i=1:length(S)
+    for j=1:length(S)
 
-c_BAFMR=paramF.BA*(1-Yext);
-c_BA_reg=S/paramF.S*c_BAFMR;
-V_FMR=paramF.S*mext_out/S/1000*(1-ybleed);
-V_H=paramF.Vf/1000-V_FMR;
-
-cBA_Feed=round(V_FMR*c_BA_reg/(V_FMR+V_H),2);
-
-Vf=m_ext/paramF.BA*(paramF.tR+top);
-nF=Vf/(Vf-paramMF.Vper*(paramF.tR-top));
-Vdisp=Vf/nF/tdisp/3600;
-VrN=Vf/0.9;
-cBA_To_Ext1=round((paramF.BA*paramMF.Vper)/(paramMF.Vper+V_acid)/88.11,2);
-Vf=round((m_ext/paramF.BA+V_acid)/1000,2);
-tol=abs(cBA_Feed-BAF);
-BAF=cBA_Feed;
-lifeLK=0.03/paramF.Prod*650*24;
-
+paramF=fedBatch(S(i),10000,VF_VR(j),37,0,1);
+cBA(i,j)=paramF.BA;
+Prod(i,j)=paramF.Prod;
+SB(i,j)=paramF.S;
+    end
 end
 
-output.nR=nF;
-output.VR=VrN/nF/0.8;
-output.MFA=paramMF.A;
-output.V_ext=Vf;
-output.BA_ext=cBA_To_Ext1;
-output.Vdisp=Vdisp;
-output.Vacid=V_acid;
-output.Vbase=V_base;
-output.VFeed=V_H;
-output.Prod=paramF.Prod;
-output.VLK=paramF.LK/lifeLK;
-% exportData(paramF,paramMF)
-
-
-function Param=MF(Vp)
-J=(166.4+143.7)/2;
-
-Vper=Vp;
-A=Vp/J;
-
-Param.Vper=Vper;
-Param.A=round(A,2);
-
-
+figure(1)
+surf(VF_VR,S,cBA)
+xlabel 'Vf_Vr [s^{-1}]'
+ylabel 'cS [kg/m^3]'
+zlabel 'cBA [kg/m^3]'
+figure(2)
+surf(VF_VR,S,Prod)
+xlabel 'Vf_Vr [s^{-1}]'
+ylabel 'cS [kg/m^3]'
+zlabel 'Prod [kg/h]'
+% 
+% figure(3)
+% surf(VF_VR,S,SB)
+% xlabel 'Vf_Vr [s^{-1}]'
+% ylabel 'cS [kg/m^3]'
+% zlabel 'SB [kg/m^3]'
 
 function Param=fedBatch(S,Vr,Vf_Vr,T,BAF,sm)
 % 1.1412 C6H12O6	+	0.70964	C5H10O5	+	0.125	NH4NO3	-->	1	CH1.6O0.43N0.25	+	1.5942	C4H8O2	+	0.0368	C2H4O2	+	2.2443	H2	+	2.9455	CO2	+	1.1880	H2O
@@ -162,22 +125,16 @@ grid on
 else 
 end
 
-Prod=cE(end,end)/(t(end)/3600+1);
+Prod=Vr(end)*cE(end,end)/(t(end)/3600+0.5)/1000;
 Param.BA=cE(end,end);
 Param.S=cA(end,end)+cB(end,end);
 Param.VR=VR/1000;
 Param.Vf=VR*0.8-VLK;
-Param.tR=t(end)/3600;
+Param.tR=t(end);
+Param.VT=Coilpar;
 Param.Vfeed=Vf;
 Param.Prod=Prod;
-Param.U=Coilpar.U;
-Param.L=Coilpar.L;
-Param.do=Coilpar.do;
-Param.w=Coilpar.w;
-Param.nv=Coilpar.nv;
-Param.LK=VLK;
 
-% disp(mean(cD(end,:)));
 
 function dxdt=kinetModel(t,x,Vf,VLK,cLK,de,N,stech,MW,kin,Feed,IC,Ep,Vrf,T)
 cA=x(1:N);
@@ -307,14 +264,14 @@ for i=2:N
 end
 ksis=3/R^3*sum(I);
 
-dQ=ksis*abs(dH)/alfa;
+dQ=ksis*abs(dH);
 
 dxdt=[dAdt dBdt dCdt dDdt dEdt dFdt dGdt dHdt dIdt dVr dQ]';
 
 function param = coolingCoil(Q,T,dm,N,dens,Vr)
 
 tci=15;
-tco=T-10;
+tco=T-5;
 dtc=tco-tci;
 mc=Q/4.2/dtc;
 wopt=1.8;
@@ -331,7 +288,7 @@ end
 do=(do+do_adj)*2.54/100;
 di=do-2*BWG*2.54/100;
 wc=4*Vc/pi/di^2;
-Dr=(4*Vr/1000/pi/3)^(1/3);
+Dr=3*dm;
 lam_coil=100;
 
 Rec=wc*di*dens/1e-3;
