@@ -1,4 +1,4 @@
-function output=pokus_o_kompletnost_m_TP_dry(c_ferm,V_ferm)
+function output=pokus_o_kompletnost_m_TP_dry(c_ferm,V_ferm,mBAinput)
 clc
 close all
 %% pocita pre konst. parametre vsetko
@@ -19,11 +19,9 @@ hust_broth = (0.99704+0.00499421*c_c0-0.000986381*c_c0^2)*1000; % korelacka od m
 m_h2o = V_broth*hust_broth-m_BA; % kg/h % menime
 m_vodna_in = m_BA+m_h2o;
 
-xlsO=xlsInteraction;
-xlsO.file='MB_dry.xlsm';
-xlsO=xlsO.xlsOpenConnection('DM');
-m_BA_organika_vstup = xlsO.xlsDataRead('N43');%xlsread('Connection\MB_dry.xlsx','DM','N43') %kg/h ZADAJ
-xlsO=xlsO.xlsCloseConnection;
+
+m_BA_organika_vstup =mBAinput;% xlsO.xlsDataRead('N43');%xlsread('Connection\MB_dry.xlsx','DM','N43') %kg/h ZADAJ
+
 
 % organika = IL+DOD+WATER+BA
 m_IL = 450; %kg/h              % MENIME ionovka
@@ -101,7 +99,8 @@ nastrel_zahltenie = 0.3;
 L = Vd/Vc;
 beta = 24*vis_c/(0.53*d32*ro_c);
 gama = 4*d32*g*d_ro/(1.59*ro_c);
-xdf = fsolve(@zahltenie,nastrel_zahltenie,[],L,beta,gama);
+opt=optimset('Display','off');
+xdf = fsolve(@zahltenie,nastrel_zahltenie,[opt],L,beta,gama);
 %Vcf m/s
 Vcf = ((-beta+(beta^2+4*gama*(1-xdf)/(1+4.56*xdf^0.73))^0.5)*xdf*(1-xdf))/(2*(xdf+L*(1-xdf)));
 
@@ -143,7 +142,7 @@ koxjoseph = koxa_joseph/a;
 nastrel_1 = 1e-6;
 n_2 = 1/3;
 c_2 = 2.44;
-k_disp_kumar = fsolve(@PL1,nastrel_1,[],d32,Vs,ro_c,ro_d,vis_c,vis_d,fi,g,c_2,n_2,MN,D_disp); %m/s
+k_disp_kumar = fsolve(@PL1,nastrel_1,[opt],d32,Vs,ro_c,ro_d,vis_c,vis_d,fi,g,c_2,n_2,MN,D_disp); %m/s
 function f1 = PL1(kd,d32,Vs,ro_c,ro_d,vis_c,vis_d,fi,g,c_2,n_2,MN,D_disp)
 
 Shd = kd*d32/D_disp;
@@ -155,7 +154,7 @@ end
 nastrel_2 = 1e-7;
 n_1 = 1/3;
 c_1 = 2.44;
-k_kont_kumar = fsolve(@PL2,nastrel_2,[],d32,Vs,ro_c,vis_c,vis_d,fi,g,c_1,n_1,MN,xd); %m/s
+k_kont_kumar = fsolve(@PL2,nastrel_2,[opt],d32,Vs,ro_c,vis_c,vis_d,fi,g,c_1,n_1,MN,xd); %m/s
 function f2 = PL2(kc,d32,Vs,ro_c,vis_c,vis_d,fi,g,c_1,n_1,MN,xd)
 D_kont = 1.0427e-9; %m2/s
 Shc = kc*d32/D_kont;
@@ -186,8 +185,11 @@ qc = (1/pi)*((FI+(1-xd)*(R-1)/R)*cot(FI)-(pi/2)); % mozno jedna zatvorka nesedi 
 alfa_c = ((1+1/qc)*exp(Pe_c)-1)^-1; % po porovnani s grafmi to ciselne sedi aj logicky backmixing coefficient between adjacent stages
 % ked sa alfa_c = 0, konc su o malinko vyssie coz je OK
 %% MB
-
-n = 80;     % n celk pocet etazi 
+if exist('n_input','var')==0
+    n = 80;     % n celk pocet etazi 
+else
+    n=n_input;
+end
 Fc = V_broth/3600; %m3/s
 Fd = m_org/(3600*ro_d); %m3/s
 S_kolony = pi*Dc^2/4; %m2
@@ -196,7 +198,7 @@ c_kont = linspace(c_c0,0,n);
 c_disp = linspace(2,c_d0,n);
 
 nastrel = [c_kont' c_disp'];
-riesenie = fsolve(@problem_MB,nastrel,[],n,c_c0,c_d0,c_IL,k_kont_kumar,k_disp_kumar,a,S_kolony,hc,Fc,Fd,alfa_c);
+riesenie = fsolve(@problem_MB,nastrel,[opt],n,c_c0,c_d0,c_IL,k_kont_kumar,k_disp_kumar,a,S_kolony,hc,Fc,Fd,alfa_c);
 c_kont = riesenie(:,1);
 c_disp = riesenie(:,2);
 etaze = 1:n;
@@ -294,20 +296,21 @@ m_vodna_out = m_vodna_in-m_BA_PL_z_cont-m_vody;
 w_BA_vodna = (m_BA-m_BA_PL_z_cont)/m_vodna_out;
 w_h2o_vodna = 1-w_BA_vodna;
 
-chyba_MB = m_org+m_vodna_in-m_vodna_out-m_organika_out
+chyba_MB = m_org+m_vodna_in-m_vodna_out-m_organika_out;
 
-str1 = sprintf('m_organika_in = %0.1f kg/h \n w_IL = %0.4f \n w_dod = %0.4f \n w_h2o = %0.4f \n w_BA = %0.4f',m_org,w_IL,w_dodecane,w_h2o_v_IL,w_BA_org_vstup);
-disp(str1);
-str2 = sprintf('m_vodna_in = %0.1f kg/h \n w_BA = %0.4f \n w_h2o = %0.4f',m_vodna_in,w_BA,w_h2o);
-disp(str2);
-str3 = sprintf('m_organika_out = %0.1f kg/h \n w_BA = %0.4f \n w_dod = %0.4f \n w_IL = %0.4f \n w_h2o = %0.4f',m_organika_out,w_BA_org,w_dod_org,w_IL_org,w_h2o_org_out);
-disp(str3);
-str4 = sprintf('m_vodna_out = %0.1f kg/h \n w_BA = %0.4f \n w_h2o = %0.4f',m_vodna_out,w_BA_vodna,w_h2o_vodna);
-disp(str4);
+% str1 = sprintf('m_organika_in = %0.1f kg/h \n w_IL = %0.4f \n w_dod = %0.4f \n w_h2o = %0.4f \n w_BA = %0.4f',m_org,w_IL,w_dodecane,w_h2o_v_IL,w_BA_org_vstup);
+% disp(str1);
+% str2 = sprintf('m_vodna_in = %0.1f kg/h \n w_BA = %0.4f \n w_h2o = %0.4f',m_vodna_in,w_BA,w_h2o);
+% disp(str2);
+% str3 = sprintf('m_organika_out = %0.1f kg/h \n w_BA = %0.4f \n w_dod = %0.4f \n w_IL = %0.4f \n w_h2o = %0.4f',m_organika_out,w_BA_org,w_dod_org,w_IL_org,w_h2o_org_out);
+% disp(str3);
+% str4 = sprintf('m_vodna_out = %0.1f kg/h \n w_BA = %0.4f \n w_h2o = %0.4f',m_vodna_out,w_BA_vodna,w_h2o_vodna);
+% disp(str4);
 
-
+xlsO=xlsInteraction;
 xlsO.file='MB_dry.xlsm';
-xlsO=xlsO.xlsOpenConnection('EXT');
+xlsO.sheet='EXT';
+xlsO=xlsO.xlsOpenConnection;
 xlsO.xlsDataWrite('B15',m_vodna_in);
 xlsO.xlsDataWrite('B17',w_BA);
 xlsO.xlsDataWrite('B19',w_h2o);
@@ -320,6 +323,7 @@ xlsO.xlsDataWrite('E15',m_organika_out);
 xlsO.xlsDataWrite('E17:E20',[w_BA_org w_dod_org w_h2o_org_out w_IL_org]');
 xlsO.xlsDataWrite('B2:B13',[V_broth c_c0 m_BA_organika_vstup m_IL w_IL0 w_h2o_v_IL0 Dc n vytazok_BA xd xdf a]');
 xlsO=xlsO.xlsCloseConnection;
+clear xlsO
 
 output.Y=vytazok_BA;
 output.m_org_out=m_organika_out;

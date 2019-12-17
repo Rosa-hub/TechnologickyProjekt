@@ -34,11 +34,11 @@ V_H=paramF.Vf/1000-V_FMR;
 cBA_Feed=round(V_FMR*c_BA_reg/(V_FMR+V_H),2);
 
 Vf=m_ext/paramF.BA*(paramF.tR+top);
-nF=Vf/(Vf-paramMF.Vper*(paramF.tR-top));
+nF=ceil(Vf/(Vf-paramMF.Vper*(paramF.tR-top)));
 Vdisp=Vf/nF/tdisp/3600;
 VrN=Vf/0.9;
 cBA_To_Ext1=round((paramF.BA*paramMF.Vper)/(paramMF.Vper+V_acid)/88.11,2);
-Vf=round((m_ext/paramF.BA+V_acid)/1000,2);
+Vf_ext=round((m_ext/paramF.BA+V_acid)/1000,2);
 tol=abs(cBA_Feed-BAF);
 BAF=cBA_Feed;
 lifeLK=0.03/paramF.Prod*650*24;
@@ -46,9 +46,9 @@ lifeLK=0.03/paramF.Prod*650*24;
 end
 
 output.nR=nF;
-output.VR=VrN/nF/0.8;
+output.VR=round(VrN/nF/0.8/1000,1);
 output.MFA=paramMF.A;
-output.V_ext=Vf;
+output.V_ext=Vf_ext;
 output.BA_ext=cBA_To_Ext1;
 output.Vdisp=Vdisp;
 output.Vacid=V_acid;

@@ -5,7 +5,8 @@ classdef xlsInteraction
         xlsObject
         WB
         Alsht
-        Sht
+        sheet
+
     end
     
     properties(Constant)
@@ -16,23 +17,17 @@ classdef xlsInteraction
     
     methods
         
-        function obj =xlsOpenConnection(obj,sheet)
+        function obj =xlsOpenConnection(obj)
             
             try
                 filepath=strcat(obj.Dirrectory,obj.file);
                 excelObject=actxserver('Excel.Application');
                 excelObject.Visible = 0;
-                obj.xlsObject.DisplayAlerts = false;
+                excelObject.DisplayAlerts = false;
 
                 obj.xlsObject=excelObject;
                 obj.WB=excelObject.Workbooks.Open(fullfile(pwd,filepath));
                 obj.Alsht=obj.WB.Sheets;
-
-                if exist('sheet','var') ==1
-                    obj.Sht = get(obj.Alsht,'Item',sheet);
-                else
-                    obj.Sht = get(obj.Alsht,'Item',obj.Alsht.Count);    
-                end
 
             catch e
                 obj=obj.xlsCloseConnection;
@@ -45,10 +40,12 @@ classdef xlsInteraction
         
         function EconomyInitialize(obj)
             x=xlsInteraction;
-            x.file='Economy.xlsm';
+            x.file='Economy_test.xlsm';
             x=x.xlsOpenConnection;
             x.xlsObject.Visible=1;
-            x.xlsObject.Run('copyTemplate');   
+            x.xlsRunMacro('copyTemplate');  
+            x.xlsDataWrite('A5:A10',20);
+            x=x.xlsCloseConnection;
         end
         
         function xlsRunMacro(obj,macro,params)
@@ -67,17 +64,22 @@ classdef xlsInteraction
         function obj=xlsCloseConnection(obj)
             
             obj.xlsObject.DisplayAlerts = false;
-            obj.WB.Save
+            obj.WB.Save;
             obj.xlsObject.Quit;
             obj.xlsObject.delete;
-         
-            obj=xlsInteraction;
             
         end
         
         function xlsDataWrite(obj,range,val)
            try 
-                RngObj=obj.Sht.Range(range);
+               
+                if isempty(obj.sheet)==0
+                    Sht = get(obj.Alsht,'Item',obj.sheet);
+                else
+                    Sht = get(obj.Alsht,'Item',obj.Alsht.Count);    
+                end
+               
+                RngObj=Sht.Range(range);
                 RngObj.Value = val;
             
            catch e
@@ -90,8 +92,14 @@ classdef xlsInteraction
         
         function out = xlsDataRead(obj,range)
            try
+               
+                if isempty(obj.sheet) ==0
+                    Sht = get(obj.Alsht,'Item',obj.sheet);
+                else
+                    Sht = get(obj.Alsht,'Item',obj.Alsht.Count);    
+                end
             
-               RngObj=obj.Sht.Range(range); 
+               RngObj=Sht.Range(range); 
                out=RngObj.Value;
                
                if iscell(out)==1

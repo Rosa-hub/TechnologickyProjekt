@@ -18,16 +18,13 @@ classdef AspInteraction
     
     methods
         
-        function [obj,vargout] = openAspConnection(obj)
+        function [obj,vargout] = openConnectionExcel(obj)
             
             try
                 vargout=0;
                 excelObject=actxserver('Excel.Application');
                 obj.xlsObj=excelObject;
-                excelObject.Visible = 0;
-                excelObject.Workbooks.Open(fullfile(pwd,obj.xlsfiel));
-                excelObject.Run('aspinit',fullfile(pwd,obj.aspfile));
-                
+                excelObject.Visible = 1;                
                 
                 vargout=1;
                 if vargout==0
@@ -42,7 +39,13 @@ classdef AspInteraction
             
         end
         
-        function vargout = closeAspConnection(obj)
+        function obj = openAspConnection(obj)
+            obj=obj.openConnectionExcel;            
+            obj.xlsObj.Workbooks.Open(fullfile(pwd,obj.xlsfiel));
+            obj.xlsObj.Run('openConnection');
+        end
+        
+        function vargout = aspCloseAspConnection(obj)
             
             try
                 vargout=0;
@@ -73,17 +76,44 @@ classdef AspInteraction
             obj.xlsObj.Run('aspRunSimulation')
         end
         
-        function aspSetScalar(obj,val)
-        
-            fullpath=strcat(obj.dataPath,obj.streamName,'\Input\',obj.propType,'\MIXED\',obj.componentName);
+        function aspSetScalar(obj,val,custpath)
+            if isempty(obj.componentName)
+                hash='';
+            else
+                hash='\';
+            end
+            if exist('custpath','var')==0
+            fullpath=strcat(obj.dataPath,obj.streamName,'\Input\',obj.propType,'\MIXED',hash,obj.componentName);
+            else
+              fullpath=strcat(custpath);  
+            end
             obj.xlsObj.Run('aspSetScalar',fullpath,val);
         end
         
-        function vargout = aspGetScalar(obj)
-            fullpath=strcat(obj.dataPath,obj.streamName,'\Output\',obj.propType,'\MIXED\',obj.componentName);
+        function vargout = aspGetScalar(obj,custpath)
+            if isempty(obj.componentName)
+                hash='';
+            else
+                hash='\';
+            end
+                
+            if exist('custpath','var')==0
+               fullpath=strcat(obj.dataPath,obj.streamName,'\Output\',obj.propType,'\MIXED',hash,obj.componentName);
+            else
+              fullpath=strcat(custpath);  
+            end
             vargout=obj.xlsObj.Run('aspGetScalar',fullpath);
         end
+        
+        function obj=clearParams(obj)
+        obj.propType=[];
+        obj.streamName=[];
+        obj.componentName = [];
+        end
+        
     end
+    
+
     
 end
     

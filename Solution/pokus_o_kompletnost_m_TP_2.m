@@ -15,10 +15,11 @@ M_IL = 773.27; %kg/kmol
 % c_d0 =xlsread('MB_dry.xlsx','DM','L28') %kmol/m3
 xlsO=xlsInteraction;
 xlsO.file='MB_dry.xlsm';
-xlsO=xlsO.xlsOpenConnection('DM');
+xlsO.sheet = 'DM';
+xlsO=xlsO.xlsOpenConnection;
 delSol=xlsO.xlsDataRead('F8');
 
-while delSol>1e-6
+while abs(delSol)>1e-6
     xlsO.xlsRunMacro('DcoefMacro');
     delSol=xlsO.xlsDataRead('F8');
 end
@@ -48,7 +49,7 @@ hustota_BA_25 = 952.8; %kg/m3
 hustota_pure_IL_25 = 884.55; %kg/m3
 hustota_pure_dodecane_25 = 746.18; %kg/m3
 % vodna faza
-V_vod = m_water/hustota_h2o_25 %m3/h
+V_vod = m_water/hustota_h2o_25;%m3/h
 vis_c = 0.894e-3;          % Pa.s      % visk. vody
 % organicka faza
 hustota = [746.18	757.87	803.03	829.13	841.76	858.42	874.56	895.99	903.38	914.40]; %kg/m3
@@ -80,7 +81,7 @@ g = 9.81;                   % m.s-2     % gravitacne zrychlenie
 Vc = V_vod/3600*4/pi/Dc^2;         % m/s  % rychlost prudenia kontinalnej fazy     
 Vd = V_sol/3600*4/pi/Dc^2;    % m/s % rychlost prudenia dispergovanej fazy
 %% zadrz %-
-xd = (2.14e3+1.65e7*Af^3)*Vd^0.81*(Vc+Vd)^0.32*d_ro^-0.98
+xd = (2.14e3+1.65e7*Af^3)*Vd^0.81*(Vc+Vd)^0.32*d_ro^-0.98;
 %% priemer kvapky %m
 C_F = 1.48; % prestup d --> k
 C_O = 1.3;
@@ -97,7 +98,8 @@ nastrel_zahltenie = 0.3;
 L = Vd/Vc;
 beta = 24*vis_c/(0.53*d32*ro_c);
 gama = 4*d32*g*d_ro/(1.59*ro_c);
-xdf = fsolve(@zahltenie,nastrel_zahltenie,[],L,beta,gama)
+opt=optimset('Display','off');
+xdf = fsolve(@zahltenie,nastrel_zahltenie,[opt],L,beta,gama);
 %Vcf m/s
 Vcf = ((-beta+(beta^2+4*gama*(1-xdf)/(1+4.56*xdf^0.73))^0.5)*xdf*(1-xdf))/(2*(xdf+L*(1-xdf)));
 
@@ -111,7 +113,7 @@ if xd>=xdf
     error
 end
 %% specificka stycna plocha m-1
-a = 6*xd/d32 %m-1
+a = 6*xd/d32; %m-1
 %% rychlost padania kvapky m/s
 Vs = (-9.82e-3+3.07e-2*exp(-8.39*Af))*Vd^0.25*MN^0.18*d_ro^0.7;
 V = Vd/xd+Vc/(1-xd);
@@ -137,7 +139,7 @@ koxjoseph = koxa_joseph/a;
 nastrel_1 = 0.5e-5;
 n_2 = 1/3;
 c_2 = 2.44;
-k_disp_kumar = fsolve(@PL1,nastrel_1,[],d32,Vs,ro_c,ro_d,vis_c,vis_d,fi,g,c_2,n_2,MN,D_disp); %m/s
+k_disp_kumar = fsolve(@PL1,nastrel_1,[opt],d32,Vs,ro_c,ro_d,vis_c,vis_d,fi,g,c_2,n_2,MN,D_disp); %m/s
 function f1 = PL1(kd,d32,Vs,ro_c,ro_d,vis_c,vis_d,fi,g,c_2,n_2,MN,D_disp)
 
 Shd = kd*d32/D_disp;
@@ -149,7 +151,7 @@ end
 nastrel_2 = 1e-5;
 n_1 = 1/3;
 c_1 = 2.44;
-k_kont_kumar = fsolve(@PL2,nastrel_2,[],d32,Vs,ro_c,vis_c,vis_d,fi,g,c_1,n_1,MN,xd); %m/s
+k_kont_kumar = fsolve(@PL2,nastrel_2,[opt],d32,Vs,ro_c,vis_c,vis_d,fi,g,c_1,n_1,MN,xd); %m/s
 function f2 = PL2(kc,d32,Vs,ro_c,vis_c,vis_d,fi,g,c_1,n_1,MN,xd)
 D_kont = 1.0427e-9; %m2/s
 Shc = kc*d32/D_kont;
@@ -177,11 +179,15 @@ FI = asin(Vd*(R-1)/(pi*Af));
 % qd nie je 0 lebo emulsion operation so qc sa meni z .. na ..
 %qc0 = ((R-1)/(R*pi))*(FI+cot(FI)-(pi/2))-((1+0)/R) %if qd = 0, mixer settler
 qc = (1/pi)*((FI+(1-xd)*(R-1)/R)*cot(FI)-(pi/2)); % mozno jedna zatvorka nesedi ale po porovnani s qc0 cca rovnake
-alfa_c = 0%((1+1/qc)*exp(Pe_c)-1)^-1; % po porovnani s grafmi to ciselne sedi aj logicky backmixing coefficient between adjacent stages
+alfa_c = 0;%((1+1/qc)*exp(Pe_c)-1)^-1; % po porovnani s grafmi to ciselne sedi aj logicky backmixing coefficient between adjacent stages
 % ked sa alfa_c = 0, konc su o malinko vyssie coz je OK
 %% MB
+if exist('n_input','var')==0
+n = 120;     % n celk pocet etazi 
 
-n = 80;     % n celk pocet etazi 
+else 
+    n=n_input;
+end
 Fc = V_vod/3600; %m3/s
 Fd = V_sol/3600; %m3/s
 S_kolony = pi*Dc^2/4; %m2
@@ -190,17 +196,17 @@ c_kont = linspace(c_c0,2,n);
 c_disp = linspace(0,c_d0,n);
 
 nastrel = [c_kont' c_disp'];
-riesenie = fsolve(@problem_MB,nastrel,[],n,c_c0,c_d0,k_kont_kumar,k_disp_kumar,a,S_kolony,hc,Fc,Fd,alfa_c);
+riesenie = fsolve(@problem_MB,nastrel,[opt],n,c_c0,c_d0,k_kont_kumar,k_disp_kumar,a,S_kolony,hc,Fc,Fd,alfa_c);
 c_kont = riesenie(:,1);
 c_disp = riesenie(:,2);
 etaze = 1:n;
 
-c_kont_out = c_kont(n) %kmol/m3
-c_disp_out = c_disp(1)%kmol/m3
-vytazok_BA = (-c_disp(1)+c_d0)*Fd/(Fd*c_d0)*100 % v perc.%
+c_kont_out = c_kont(n); %kmol/m3
+c_disp_out = c_disp(1);%kmol/m3
+vytazok_BA = (-c_disp(1)+c_d0)*Fd/(Fd*c_d0)*100;% v perc.%
 
-m_BA_PL_do_cont = (-c_c0+c_kont_out)*Fc*3600*M_BA %kg/h
-m_BA_PL_z_disp = (-c_disp(1)+c_d0)*Fd*3600*M_BA %kg/h
+m_BA_PL_do_cont = (-c_c0+c_kont_out)*Fc*3600*M_BA; %kg/h
+m_BA_PL_z_disp = (-c_disp(1)+c_d0)*Fd*3600*M_BA; %kg/h
 
 m_vodna_out = m_BA_PL_z_disp+m_water;
 w_BA_vodna = m_BA_PL_z_disp/(m_BA_PL_z_disp+m_water); %-
@@ -210,16 +216,16 @@ m_organika_out = m_dod+m_BA - m_BA_PL_z_disp;
 w_BA_org = (m_BA - m_BA_PL_z_disp)/(m_dod+m_BA - m_BA_PL_z_disp);
 w_dod_org = 1-w_BA_org;
 
-chyba_MB = m_sol+m_water-m_vodna_out-m_organika_out
+chyba_MB = m_sol+m_water-m_vodna_out-m_organika_out;
 
-str1 = sprintf('m_organika_in = %0.1f kg/h \n w_BA = %0.4f \n w_h2o = %0.4f',m_sol,w_BA,w_dod);
-disp(str1);
-str2 = sprintf('m_vodna_in = %0.1f kg/h \n w_BA = 0 \n w_h2o = 1',m_water);
-disp(str2);
-str3 = sprintf('m_organika_out = %0.1f kg/h \n w_BA = %0.4f \n w_h2o = %0.4f',m_organika_out,w_BA_org,w_dod_org);
-disp(str3);
-str4 = sprintf('m_vodna_out = %0.1f kg/h \n w_BA = %0.4f \n w_h2o = %0.4f',m_vodna_out,w_BA_vodna,w_h2o_vodna);
-disp(str4);
+% str1 = sprintf('m_organika_in = %0.1f kg/h \n w_BA = %0.4f \n w_h2o = %0.4f',m_sol,w_BA,w_dod);
+% disp(str1);
+% str2 = sprintf('m_vodna_in = %0.1f kg/h \n w_BA = 0 \n w_h2o = 1',m_water);
+% disp(str2);
+% str3 = sprintf('m_organika_out = %0.1f kg/h \n w_BA = %0.4f \n w_h2o = %0.4f',m_organika_out,w_BA_org,w_dod_org);
+% disp(str3);
+% str4 = sprintf('m_vodna_out = %0.1f kg/h \n w_BA = %0.4f \n w_h2o = %0.4f',m_vodna_out,w_BA_vodna,w_h2o_vodna);
+% disp(str4);
 % 
 % xlswrite('MB_dry.xlsx',m_water,'EXT','J15');
 % xlswrite('MB_dry.xlsx',m_vodna_out,'EXT','K15');
@@ -242,7 +248,8 @@ disp(str4);
 % xlswrite('MB_dry.xlsx',a,'EXT','J10');
 
 xlsO.file='MB_dry.xlsm';
-xlsO=xlsO.xlsOpenConnection('EXT');
+xlsO.sheet='EXT';
+xlsO=xlsO.xlsOpenConnection;
 xlsO.xlsDataWrite('J15',m_water);
 xlsO.xlsDataWrite('K15',m_vodna_out);
 xlsO.xlsDataWrite('K17',w_BA_vodna);
@@ -252,6 +259,7 @@ xlsO.xlsDataWrite('L17:L18',[w_BA w_dod]');
 xlsO.xlsDataWrite('L15',m_organika_out);
 xlsO.xlsDataWrite('M17:M18',[w_BA_org w_dod_org]');
 xlsO.xlsDataWrite('J2:J10',[V_sol c_d0 m_water Dc n vytazok_BA xd xdf a]');
+z2=xlsO.xlsDataRead('M28');
 xlsO=xlsO.xlsCloseConnection;
 
 output.m_water=m_water;
@@ -269,11 +277,12 @@ output.c_d0 = c_d0;
 output.Dc = Dc;
 output.n=n;
 output.Hc=n*hc;
-output.YBA2=vytazok_BA;
+output.Y=vytazok_BA;
 output.xd=xd;
 output.xdf=xdf;
 output.a=a;
 output.z1=z1;
+output.z2=z2;
 
 % xlswrite('MB_wet.xlsx',m_water,'EXT','J15');
 % xlswrite('MB_wet.xlsx',m_vodna_out,'EXT','K15');
