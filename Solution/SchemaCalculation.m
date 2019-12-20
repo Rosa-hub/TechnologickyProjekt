@@ -86,9 +86,17 @@ xlsO.sheet='DM';
 xlsO=xlsO.xlsOpenConnection;
 xlsO.xlsDataWrite('C2:C4',[mF_dekanter wBA_dekanter wDOD_dekanter]');
 xlsO.xlsDataWrite('C18:C23',[mBA_to_mix mH2O_to_mix mDOD_to_mix mDOD_to_e1 mIL_to_e1 mBA_to_e1]');
+xlsO=xlsO.xlsCloseConnection;
+
+Ext2=pokus_o_kompletnost_m_TP_2;
+
+xlsO=xlsInteraction;
+xlsO.file='MB_dry.xlsm';
+xlsO.sheet='DM';
+xlsO=xlsO.xlsOpenConnection;
 BA_e1=xlsO.xlsDataRead('N43');
 xlsO=xlsO.xlsCloseConnection;
-Ext2=pokus_o_kompletnost_m_TP_2;
+
 
 % disp(Ferm)
 % disp(Ext1)
@@ -96,47 +104,50 @@ Ext2=pokus_o_kompletnost_m_TP_2;
   tolmain=abs(round(BA_e1,1)-round(Ext1.mBA_org_vstup,1));
   mBA_nastrel = round(BA_e1,2);
 end
-disp(sprintf('Cas simulacie: %1.0f:%1.0f',round(toc/60,0),round(mod(toc,60),0)))
-    x=xlsInteraction;
-    x.file='Economy_test.xlsm';
-    x=x.xlsOpenConnection;
-    x.xlsObject.Visible=1;
-    x.xlsRunMacro('copyTemplate');  
 
+AD=adsorpcia(Ext1.m_vodna_out/1000);
+% disp(sprintf('Cas simulacie: %1.0f:%1.0f',round(toc/60,0),round(mod(toc,60),0)))
+%     x=xlsInteraction;
+%     x.file='Economy_test.xlsm';
+%     x=x.xlsOpenConnection;
+%     x.xlsObject.Visible=1;
+%     x.xlsRunMacro('copyTemplate');  
+% 
 asp.aspCloseAspConnection;
-x=x.xlsCloseConnection;
+% x=x.xlsCloseConnection;
 
-disp(Ext2.Y)
-disp(YSPD)
-disp(Ext1.Y)
+disp(Ext2)
+disp(Ext1)
+disp(Ferm)
+disp(AD)
 
 
-function Ext1=extrakcia1(BA,Vext,Y)
-
-if isempty(Y)==1
-    Ext1=pokus_o_kompletnost_m_TP_dry(BA,Vext);
-    
-else
-    n=fsolve(@solExt1,80,[],BA,Vext,Y);
-    Ext1=pokus_o_kompletnost_m_TP_dry(BA,Vext,ceil(n));
-end
-
-function Ext2=extrakcia2(Y)
-
-if isempty(Y)==1
-    Ext2=pokus_o_kompletnost_m_TP_dry();
-    
-else
-    n=fsolve(@solExt1,80,[],BA,Vext,Y);
-    Ext2=pokus_o_kompletnost_m_TP_2(ceil(n));
-end
-
-function f=solExt1(n,BA,Vext,Y)
-n=ceil(n);
-Ext1=pokus_o_kompletnost_m_TP_dry(BA,Vext,n);
-f=round(Ext1.Y/100,1)-Y;
-
-function f=solExt2(n)
-n=ceil(n);
-Ext1=pokus_o_kompletnost_m_TP_dry(BA,Vext,n);
-f=round(Ext1.Y/100,1)-Y;
+% function Ext1=extrakcia1(BA,Vext,Y)
+% 
+% if isempty(Y)==1
+%     Ext1=pokus_o_kompletnost_m_TP_dry(BA,Vext);
+%     
+% else
+%     n=fsolve(@solExt1,80,[],BA,Vext,Y);
+%     Ext1=pokus_o_kompletnost_m_TP_dry(BA,Vext,ceil(n));
+% end
+% 
+% function Ext2=extrakcia2(Y)
+% 
+% if isempty(Y)==1
+%     Ext2=pokus_o_kompletnost_m_TP_dry();
+%     
+% else
+%     n=fsolve(@solExt1,80,[],BA,Vext,Y);
+%     Ext2=pokus_o_kompletnost_m_TP_2(ceil(n));
+% end
+% 
+% function f=solExt1(n,BA,Vext,Y)
+% n=ceil(n);
+% Ext1=pokus_o_kompletnost_m_TP_dry(BA,Vext,n);
+% f=round(Ext1.Y/100,1)-Y;
+% 
+% function f=solExt2(n)
+% n=ceil(n);
+% Ext1=pokus_o_kompletnost_m_TP_dry(BA,Vext,n);
+% f=round(Ext1.Y/100,1)-Y;

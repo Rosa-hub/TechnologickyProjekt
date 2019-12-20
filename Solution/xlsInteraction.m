@@ -111,6 +111,19 @@ classdef xlsInteraction
                rethrow(e)
            end
         end
+        
+        function out = getRange(obj,ref,val)
+            
+           
+           Sht = get(obj.Alsht,'Item',obj.Alsht.Count);
+           Rng1 = Sht.Range(ref);
+           [a,b]=size(val);
+           ref1=Rng1.Address;
+           ref2=Rng1.get('Offset',a-1,b-1).Address;
+           
+           out=strcat(ref1,":",ref2);
+            
+        end
     end
     
 end

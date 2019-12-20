@@ -29,6 +29,7 @@ c_d0=xlsO.xlsDataRead('L28');
 z1=xlsO.xlsDataRead('I13');
 xlsO=xlsO.xlsCloseConnection;
 
+
 % V_sol = xlsread('MB_wet.xlsx','DM','M28') %  m3/h % menime
 % c_d0 =xlsread('MB_wet.xlsx','DM','L28') %kmol/m3
 c_c0 = 0.0;   %kmol/m3 % nemenne
@@ -75,17 +76,13 @@ PN_org = PN_dodecane*w_dod + PN_BA*w_BA ;
 % medzifazove napatie [N/m]
 MN = (PN_vodna - PN_org)*1e-3;
 %% charakteristika kolony
-Dc = 0.2;                     % m  1      % priemer kolony
+Dcn = 0.2;                     % m  1      % priemer kolony
 f = 4;                      % s-1 4      % frekvencia
 A = 0.02;                   % m         % amplituda
 Af = A*f;                   % m.s-1     % rychlost miesania
 % konstanta
 g = 9.81;                   % m.s-2     % gravitacne zrychlenie
-%% rychlosti prudenia faz %m/s
-Vc = V_vod/3600*4/pi/Dc^2;         % m/s  % rychlost prudenia kontinalnej fazy     
-Vd = V_sol/3600*4/pi/Dc^2;    % m/s % rychlost prudenia dispergovanej fazy
-%% zadrz %-
-xd = (2.14e3+1.65e7*Af^3)*Vd^0.81*(Vc+Vd)^0.32*d_ro^-0.98;
+
 %% priemer kvapky %m
 C_F = 1.48; % prestup d --> k
 C_O = 1.3;
@@ -96,6 +93,33 @@ hc = 0.05; % m
 co = 0.7;  % 0.6 kumar alebo 0.7 kathryn orifice coefficient
 fi = 2*pi^2/3*((1-S^2)/(hc*co^2*S^2))*Af^3; %disipovana mechanicka energia W/kg
 d32 = C_F*S^N*(1/(C_O*(MN/d_ro/g)^0.5)^2+1/(C_P*fi^-0.4*(MN/ro_c)^0.6)^2)^-0.5; %m
+
+opt=optimset('Display','off');
+Dc=fzero(@priemerKolony,Dcn,opt,Af,V_vod,V_sol,ro_d,vis_c,ro_c,d32,g,d_ro,opt);
+
+function f=priemerKolony(Dc,Af,V_vod,V_sol,ro_d,vis_c,ro_c,d32,g,d_ro,opt)
+    Vcn = V_vod/3600*4/pi/Dc^2;         % m/s  % rychlost prudenia kontinalnej fazy     
+    Vdn = V_sol/3600*4/pi/Dc^2;
+    
+    
+    xdn = (2.14e3+1.65e7*Af^3)*Vdn^0.81*(Vcn+Vdn)^0.32*d_ro^-0.98;    
+        
+    nastrel_zah = 0.3;
+    Ln = Vdn/Vcn;
+    betan = 24*vis_c/(0.53*d32*ro_c);
+    gaman = 4*d32*g*d_ro/(1.59*ro_c);
+
+    xdfn = fsolve(@zahltenie,nastrel_zah,opt,Ln,betan,gaman);
+    
+    f=xdn*5-xdfn;
+        
+end
+Dc=round(Dc,2);
+%% rychlosti prudenia faz %m/s
+Vc = V_vod/3600*4/pi/Dc^2;         % m/s  % rychlost prudenia kontinalnej fazy     
+Vd = V_sol/3600*4/pi/Dc^2;    % m/s % rychlost prudenia dispergovanej fazy
+%% zadrz %-
+xd = (2.14e3+1.65e7*Af^3)*Vd^0.81*(Vc+Vd)^0.32*d_ro^-0.98;
 
 %% zahltenie %- Vc>0
 nastrel_zahltenie = 0.3;
@@ -113,9 +137,7 @@ delta = (beta^2+4*gama*(1-xdf)/(1+4.56*xdf^0.73))^0.5;
 f1 = (xdf+L*(1-xdf))*((delta-beta)*(1-2*xdf)-2*gama*xdf*(1-xdf)/(delta*(1+4.56*xdf^0.73)^2)*(1+4.56*xdf^0.73+3.33*xdf^-0.27*(1-xdf)))+(delta-beta)*xdf*(1-xdf)*(L-1);
 end
 
-while xd>=xdf
-    Dc=Dc*1.01
-end
+
 %% specificka stycna plocha m-1
 a = 6*xd/d32; %m-1
 %% rychlost padania kvapky m/s
@@ -261,6 +283,7 @@ xlsO.xlsDataWrite('M17:M18',[w_BA_org w_dod_org]');
 xlsO.xlsDataWrite('J2:J10',[V_sol c_d0 m_water Dc n vytazok_BA xd xdf a]');
 z2=xlsO.xlsDataRead('M28');
 xlsO=xlsO.xlsCloseConnection;
+clear xlsO
 
 output.m_water=m_water;
 output.m_vodna_out=m_vodna_out;

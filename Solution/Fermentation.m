@@ -29,11 +29,12 @@ tR=paramF.tR;
 c_BAFMR=paramF.BA*(1-Yext);
 c_BA_reg=S/paramF.S*c_BAFMR;
 V_FMR=paramF.S*mext_out/S/1000*(1-ybleed);
-V_H=paramF.Vf/1000-V_FMR;
-
-cBA_Feed=round(V_FMR*c_BA_reg/(V_FMR+V_H),2);
 
 Vf=m_ext/paramF.BA*(paramF.tR+top);
+
+V_H=Vf/1000-V_FMR;
+cBA_Feed=round(V_FMR*c_BA_reg/(V_FMR+V_H),2);
+
 nF=ceil(Vf/(Vf-paramMF.Vper*(paramF.tR-top)));
 Vdisp=Vf/nF/tdisp/3600;
 VrN=Vf/0.9;
@@ -53,9 +54,12 @@ output.BA_ext=cBA_To_Ext1;
 output.Vdisp=Vdisp;
 output.Vacid=V_acid;
 output.Vbase=V_base;
-output.VFeed=V_H;
+output.VFeed=V_H/(paramF.tR+top);
 output.Prod=paramF.Prod;
 output.VLK=paramF.LK/lifeLK;
+output.CN=paramF.mN/(paramF.tR+top)/1000;
+output.Vrz=Vf/(paramF.tR+top)/1000;
+output.BAF=c_BAFMR;
 % exportData(paramF,paramMF)
 
 
@@ -176,6 +180,7 @@ Param.do=Coilpar.do;
 Param.w=Coilpar.w;
 Param.nv=Coilpar.nv;
 Param.LK=VLK;
+Param.mN=cNS*Param.Vf;
 
 % disp(mean(cD(end,:)));
 
